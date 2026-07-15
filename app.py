@@ -22,6 +22,7 @@ ISBN: 81-237-2095-5
 import time
 
 def get_embedding(text):
+    last_error = "None"
     url = "https://api-inference.huggingface.co/models/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     headers = {}
     hf_token = os.environ.get("HF_TOKEN")
@@ -44,12 +45,16 @@ def get_embedding(text):
                 time.sleep(min(wait_time, 10))
                 continue
             else:
-                print(f"HF Error status {response.status_code}: {response.text}")
+                error_msg = f"HF Error status {response.status_code}: {response.text}"
+                print(error_msg)
+                last_error = error_msg
         except Exception as e:
-            print(f"HF request exception: {e}")
+            error_msg = f"HF request exception: {e}"
+            print(error_msg)
+            last_error = error_msg
         time.sleep(2)
         
-    raise Exception("Failed to get embeddings from HuggingFace API.")
+    raise Exception(f"Failed to get embeddings from HuggingFace API. Detail: {last_error}")
 
 QDRANT_URL = os.environ.get("QDRANT_URL", "https://322fedb2-021f-4089-91c5-8215f4139125.us-central1-0.gcp.cloud.qdrant.io")
 QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIiwic3ViamVjdCI6ImFwaS1rZXk6OGMyOTczMjYtNWU4Yy00OGRmLWFhZjQtNjlkMzA2YWEyZDI1In0.RHMwPRDBuXzYREyKne4UwcNLNiJwwFjLZdh8y-9uda4")
