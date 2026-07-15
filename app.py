@@ -21,7 +21,10 @@ ISBN: 81-237-2095-5
 """
 
 # Set cache path for fastembed
-os.environ["FASTEMBED_CACHE_PATH"] = os.environ.get("FASTEMBED_CACHE_PATH", "./.venv/fastembed_cache")
+if os.name == 'nt':
+    os.environ["FASTEMBED_CACHE_PATH"] = os.environ.get("FASTEMBED_CACHE_PATH", "./.venv/fastembed_cache")
+else:
+    os.environ["FASTEMBED_CACHE_PATH"] = os.environ.get("FASTEMBED_CACHE_PATH", "/opt/render/project/src/.venv/fastembed_cache")
 
 print("Initializing fastembed TextEmbedding...")
 embedder = TextEmbedding(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
