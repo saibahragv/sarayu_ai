@@ -123,7 +123,11 @@ def chat():
         return jsonify({'error': 'Empty query'}), 400
         
     print(f"Retrieving context for query (len={len(query)})")
-    context = get_context(query)
+    try:
+        context = get_context(query)
+    except Exception as e:
+        print(f"Error in get_context: {e}")
+        return jsonify({'error': f"Embedding/Context error: {str(e)}"}), 500
     
     system_prompt = f"""Nuvvu "The Village by the Sea" (సముద్ర తీర గ్రామం) ane pustakam gurinchi expert ga panichestunnav.
 
