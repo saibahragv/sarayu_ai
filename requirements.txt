@@ -2,4 +2,6 @@ PyMuPDF
 qdrant-client
 sentence-transformers
 requests
+flask
 gunicorn
+
