@@ -5,7 +5,9 @@ from sentence_transformers import SentenceTransformer
 
 app = Flask(__name__)
 
-API_KEY = "2f8c6e4e655f441d8d767c4ac68658b0.ne_XJyjwax1Ws0OPIzumOoK-"
+import os
+
+API_KEY = os.environ.get("NEBIUS_API_KEY", os.environ.get("OLLAMA_API_KEY", "2f8c6e4e655f441d8d767c4ac68658b0.ne_XJyjwax1Ws0OPIzumOoK-"))
 MODEL = "gemma4:31b"
 
 # Book metadata that the LLM should always know
