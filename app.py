@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
 import requests
-from qdrant_client import QdrantClient
 
 app = Flask(__name__)
 
