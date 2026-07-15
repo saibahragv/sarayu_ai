@@ -1,0 +1,5 @@
+PyMuPDF
+qdrant-client
+sentence-transformers
+requests
+gunicorn
