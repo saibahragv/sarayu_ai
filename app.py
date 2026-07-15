@@ -26,8 +26,8 @@ if os.name == 'nt':
 else:
     os.environ["FASTEMBED_CACHE_PATH"] = os.environ.get("FASTEMBED_CACHE_PATH", "/opt/render/project/src/.venv/fastembed_cache")
 
-print("Initializing fastembed TextEmbedding...")
-embedder = TextEmbedding(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+print("Initializing fastembed TextEmbedding with 1 thread...")
+embedder = TextEmbedding(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", threads=1)
 
 def get_embedding(text):
     return next(embedder.embed([text])).tolist()
