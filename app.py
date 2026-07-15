@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory
 import requests
 from qdrant_client import QdrantClient
-from fastembed import TextEmbedding
 
 app = Flask(__name__)
 
@@ -20,17 +19,37 @@ First Telugu Edition: 1997
 ISBN: 81-237-2095-5
 """
 
-# Set cache path for fastembed
-if os.name == 'nt':
-    os.environ["FASTEMBED_CACHE_PATH"] = os.environ.get("FASTEMBED_CACHE_PATH", "./.venv/fastembed_cache")
-else:
-    os.environ["FASTEMBED_CACHE_PATH"] = os.environ.get("FASTEMBED_CACHE_PATH", "/opt/render/project/src/.venv/fastembed_cache")
-
-print("Initializing fastembed TextEmbedding with 1 thread...")
-embedder = TextEmbedding(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", threads=1)
+import time
 
 def get_embedding(text):
-    return next(embedder.embed([text])).tolist()
+    url = "https://api-inference.huggingface.co/models/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    headers = {}
+    hf_token = os.environ.get("HF_TOKEN")
+    if hf_token:
+        headers["Authorization"] = f"Bearer {hf_token}"
+        
+    for attempt in range(5):
+        try:
+            response = requests.post(url, headers=headers, json={"inputs": text}, timeout=15)
+            if response.status_code == 200:
+                result = response.json()
+                if isinstance(result, list):
+                    if isinstance(result[0], list):
+                        return result[0]
+                    return result
+            elif response.status_code == 503:
+                err_data = response.json()
+                wait_time = err_data.get("estimated_time", 5)
+                print(f"HF Model loading. Waiting {wait_time}s (attempt {attempt+1}/5)...")
+                time.sleep(min(wait_time, 10))
+                continue
+            else:
+                print(f"HF Error status {response.status_code}: {response.text}")
+        except Exception as e:
+            print(f"HF request exception: {e}")
+        time.sleep(2)
+        
+    raise Exception("Failed to get embeddings from HuggingFace API.")
 
 QDRANT_URL = os.environ.get("QDRANT_URL", "https://322fedb2-021f-4089-91c5-8215f4139125.us-central1-0.gcp.cloud.qdrant.io")
 QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIiwic3ViamVjdCI6ImFwaS1rZXk6OGMyOTczMjYtNWU4Yy00OGRmLWFhZjQtNjlkMzA2YWEyZDI1In0.RHMwPRDBuXzYREyKne4UwcNLNiJwwFjLZdh8y-9uda4")
