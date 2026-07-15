@@ -1,7 +1,6 @@
 PyMuPDF
 qdrant-client
-sentence-transformers
+fastembed
 requests
 flask
 gunicorn
-

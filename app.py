@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, send_from_directory
 import requests
 from qdrant_client import QdrantClient
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 app = Flask(__name__)
 
@@ -20,10 +20,9 @@ First Telugu Edition: 1997
 ISBN: 81-237-2095-5
 """
 
-# Initialize Qdrant and Embeddings globally
-print("Initializing Embedder...")
-embedder = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
-import os
+# Initialize Embedder using fastembed (ONNX, ultra lightweight)
+print("Initializing fastembed TextEmbedding...")
+embedder = TextEmbedding(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 
 QDRANT_URL = os.environ.get("QDRANT_URL", "https://322fedb2-021f-4089-91c5-8215f4139125.us-central1-0.gcp.cloud.qdrant.io")
 QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIiwic3ViamVjdCI6ImFwaS1rZXk6OGMyOTczMjYtNWU4Yy00OGRmLWFhZjQtNjlkMzA2YWEyZDI1In0.RHMwPRDBuXzYREyKne4UwcNLNiJwwFjLZdh8y-9uda4")
@@ -70,7 +69,7 @@ def get_context(query, top_k=8):
     augmented_query = augment_query_with_telugu(query)
     print(f"  Augmented query (len={len(augmented_query)})")
     
-    query_vector = embedder.encode([augmented_query])[0].tolist()
+    query_vector = next(embedder.embed([augmented_query])).tolist()
     search_result = qdrant.query_points(
         collection_name="telugu_pdf",
         query=query_vector,
