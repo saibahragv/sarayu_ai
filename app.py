@@ -19,47 +19,60 @@ First Telugu Edition: 1997
 ISBN: 81-237-2095-5
 """
 
-import time
+import math
+import re
+import json
 
-def get_embedding(text):
-    last_error = "None"
-    url = "https://api-inference.huggingface.co/models/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-    headers = {}
-    hf_token = os.environ.get("HF_TOKEN")
-    if hf_token:
-        headers["Authorization"] = f"Bearer {hf_token}"
+class SimpleTFIDF:
+    def __init__(self, documents):
+        self.documents = documents
+        self.doc_tokens = [self.tokenize(doc) for doc in documents]
+        self.vocab = set(token for doc in self.doc_tokens for token in doc)
         
-    for attempt in range(5):
-        try:
-            response = requests.post(url, headers=headers, json={"inputs": text}, timeout=15)
-            if response.status_code == 200:
-                result = response.json()
-                if isinstance(result, list):
-                    if isinstance(result[0], list):
-                        return result[0]
-                    return result
-            elif response.status_code == 503:
-                err_data = response.json()
-                wait_time = err_data.get("estimated_time", 5)
-                print(f"HF Model loading. Waiting {wait_time}s (attempt {attempt+1}/5)...")
-                time.sleep(min(wait_time, 10))
-                continue
-            else:
-                error_msg = f"HF Error status {response.status_code}: {response.text}"
-                print(error_msg)
-                last_error = error_msg
-        except Exception as e:
-            error_msg = f"HF request exception: {e}"
-            print(error_msg)
-            last_error = error_msg
-        time.sleep(2)
+        # Calculate IDF
+        self.idf = {}
+        num_docs = len(documents)
+        for term in self.vocab:
+            doc_count = sum(1 for doc in self.doc_tokens if term in doc)
+            self.idf[term] = math.log((1 + num_docs) / (1 + doc_count)) + 1
+            
+        # Calculate TF-IDF vectors for documents
+        self.doc_vectors = []
+        for doc in self.doc_tokens:
+            vector = {}
+            for term in doc:
+                tf = doc.count(term) / len(doc)
+                vector[term] = tf * self.idf[term]
+            self.doc_vectors.append(vector)
+            
+    def tokenize(self, text):
+        return re.findall(r'\w+', text.lower())
         
-    raise Exception(f"Failed to get embeddings from HuggingFace API. Detail: {last_error}")
+    def search(self, query, top_k=8):
+        query_tokens = self.tokenize(query)
+        query_vector = {}
+        for term in query_tokens:
+            if term in self.vocab:
+                tf = query_tokens.count(term) / len(query_tokens)
+                query_vector[term] = tf * self.idf[term]
+                
+        scores = []
+        for idx, doc_vector in enumerate(self.doc_vectors):
+            dot_product = sum(query_vector[term] * doc_vector.get(term, 0) for term in query_vector)
+            query_norm = math.sqrt(sum(val**2 for val in query_vector.values()))
+            doc_norm = math.sqrt(sum(val**2 for val in doc_vector.values()))
+            
+            similarity = dot_product / (query_norm * doc_norm) if (query_norm * doc_norm) > 0 else 0
+            scores.append((similarity, idx))
+            
+        scores.sort(reverse=True, key=lambda x: x[0])
+        return [self.documents[idx] for _, idx in scores[:top_k]]
 
-QDRANT_URL = os.environ.get("QDRANT_URL", "https://322fedb2-021f-4089-91c5-8215f4139125.us-central1-0.gcp.cloud.qdrant.io")
-QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIiwic3ViamVjdCI6ImFwaS1rZXk6OGMyOTczMjYtNWU4Yy00OGRmLWFhZjQtNjlkMzA2YWEyZDI1In0.RHMwPRDBuXzYREyKne4UwcNLNiJwwFjLZdh8y-9uda4")
+# Load chunks.json and initialize the search engine
+with open("chunks.json", "r", encoding="utf-8") as f:
+    chunks = json.load(f)
 
-qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+search_engine = SimpleTFIDF(chunks)
 
 # Store conversation history per session (simple in-memory)
 conversation_history = []
@@ -101,14 +114,8 @@ def get_context(query, top_k=8):
     augmented_query = augment_query_with_telugu(query)
     print(f"  Augmented query (len={len(augmented_query)})")
     
-    query_vector = get_embedding(augmented_query)
-    search_result = qdrant.query_points(
-        collection_name="telugu_pdf",
-        query=query_vector,
-        limit=top_k
-    ).points
-    context = "\n\n".join([hit.payload['text'] for hit in search_result])
-    return context
+    results = search_engine.search(augmented_query, top_k=top_k)
+    return "\n\n".join(results)
 
 @app.route('/')
 def serve_index():

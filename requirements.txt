@@ -1,5 +1,3 @@
-PyMuPDF
-qdrant-client
 requests
 flask
 gunicorn
